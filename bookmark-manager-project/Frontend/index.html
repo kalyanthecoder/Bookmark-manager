@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🚀 Bookmark Manager</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <style>
+    body {
+      background: radial-gradient(circle at top left, #1e1e3f, #0d0d1a);
+      color: #f0f0f0;
+      font-family: 'Segoe UI', sans-serif;
+      padding-top: 70px;
+      overflow-x: hidden;
+    }
+
+    .navbar {
+      background: #111122;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.8);
+    }
+
+    .bookmark-card {
+      background: linear-gradient(145deg, #2e2e4f, #1a1a2f);
+      border: 1px solid #3e3e60;
+      border-radius: 20px;
+      box-shadow: 0 12px 40px rgba(0, 255, 255, 0.1);
+      transition: all 0.3s ease-in-out;
+      transform-style: preserve-3d;
+    }
+
+    .bookmark-card:hover {
+      transform: rotateY(2deg) scale(1.02);
+      box-shadow: 0 18px 60px rgba(0, 255, 255, 0.2);
+    }
+
+    .tag-pill {
+      margin: 2px;
+      padding: 5px 10px;
+      border-radius: 50px;
+      background: #6610f2;
+      font-size: 12px;
+    }
+
+    .modal-content {
+      background: #1a1a2f;
+      border: 1px solid #333355;
+      border-radius: 15px;
+      color: #fff;
+    }
+
+    .btn-animated {
+      transition: all 0.3s ease-in-out;
+    }
+
+    .btn-animated:hover {
+      transform: scale(1.1);
+      background: #00f0ff;
+      color: #000;
+    }
+
+    .neon {
+      text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+    }
+
+    .voice-icon {
+      animation: pulse 2s infinite ease-in-out;
+      color: #0ff;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.1);
+        opacity: 0.7;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg fixed-top">
+    <div class="container-fluid">
+      <a class="navbar-brand text-light neon" href="#">🔖 AI Bookmark Manager</a>
+      <form class="d-flex mx-auto" role="search">
+        <input class="form-control me-2" type="search" placeholder="Search" id="searchInput">
+        <button class="btn btn-outline-info" type="button" onclick="voiceSearch()">
+          <i class="fas fa-microphone voice-icon"></i>
+        </button>
+      </form>
+      <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#loginModal">Login</button>
+      <button class="btn btn-success btn-animated" data-bs-toggle="modal" data-bs-target="#addModal">➕ Add</button>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <div class="container my-4">
+    <div class="row" id="bookmarkList"></div>
+  </div>
+
+  <!-- Add Bookmark Modal -->
+  <div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content p-3">
+        <h5>Add Bookmark</h5>
+        <input id="title" class="form-control mb-2" placeholder="Title">
+        <input id="url" class="form-control mb-2" placeholder="URL">
+        <textarea id="notes" class="form-control mb-2" placeholder="Notes"></textarea>
+        <input id="tags" class="form-control mb-2" placeholder="Tags (comma separated)">
+        <button class="btn btn-primary w-100" onclick="addBookmark()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login Modal -->
+  <div class="modal fade" id="loginModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content p-3">
+        <h5>Login</h5>
+        <input id="username" class="form-control mb-2" placeholder="Username">
+        <input id="password" type="password" class="form-control mb-2" placeholder="Password">
+        <button class="btn btn-primary w-100" onclick="login()">Login</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script>
+    const API_BASE = 'http://localhost:8000';
+    let token = '';
+
+    async function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const form = new FormData();
+      form.append('username', username);
+      form.append('password', password);
+      const res = await fetch(`${API_BASE}/login`, {
+        method: 'POST',
+        body: form
+      });
+      const data = await res.json();
+      token = data.access_token;
+      alert('✅ Logged in!');
+      listBookmarks();
+    }
+
+    async function addBookmark() {
+      const bookmark = {
+        title: document.getElementById('title').value,
+        url: document.getElementById('url').value,
+        notes: document.getElementById('notes').value,
+        tags: document.getElementById('tags').value.split(',').map(t => t.trim())
+      };
+      await fetch(`${API_BASE}/bookmarks/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(bookmark)
+      });
+      listBookmarks();
+    }
+
+    async function listBookmarks() {
+      const res = await fetch(`${API_BASE}/bookmarks/`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      const container = document.getElementById('bookmarkList');
+      container.innerHTML = '';
+      data.forEach(b => {
+        const tagsHTML = b.tags.map(tag => `<span class='badge tag-pill'>#${tag}</span>`).join(' ');
+        container.innerHTML += `
+          <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card bookmark-card p-3">
+              <h5>${b.title}</h5>
+              <p>${b.notes || ''}</p>
+              <p><a href="${b.url}" class="text-info" target="_blank">🔗 Visit</a></p>
+              <div>${tagsHTML}</div>
+              <div class="mt-2">
+                <button class="btn btn-sm btn-outline-info" onclick="navigator.clipboard.writeText('${b.url}')">📋 Copy</button>
+                <button class="btn btn-sm btn-outline-warning" onclick="summarize('${b.url}')">🧠 Summarize</button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    async function summarize(url) {
+      alert("🧠 AI Summary for: " + url + "\n(This is just a placeholder — AI integration can be added with OpenAI/Bard API.)");
+    }
+
+    async function voiceSearch() {
+      const recognition = new webkitSpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.start();
+      recognition.onresult = function (event) {
+        document.getElementById('searchInput').value = event.results[0][0].transcript;
+        document.getElementById('searchInput').dispatchEvent(new Event('input'));
+      };
+    }
+
+    document.getElementById('searchInput').addEventListener('input', async function () {
+      const keyword = this.value;
+      const res = await fetch(`${API_BASE}/search/?keyword=${keyword}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      const container = document.getElementById('bookmarkList');
+      container.innerHTML = '';
+      data.forEach(b => {
+        container.innerHTML += `
+          <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card bookmark-card p-3">
+              <h5>${b.title}</h5>
+              <p>${b.notes || ''}</p>
+              <p><a href="${b.url}" class="text-info" target="_blank">🔗 Visit</a></p>
+              <button class="btn btn-sm btn-outline-light mt-2" onclick="navigator.clipboard.writeText('${b.url}')">Copy</button>
+            </div>
+          </div>
+        `;
+      });
+    });
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
